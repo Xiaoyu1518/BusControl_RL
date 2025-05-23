@@ -23,11 +23,8 @@ torch.manual_seed(42)
 
 matplotlib.use('Agg')
 
-# 读取基本信息
+# Read file dependency
 route_id = 'A2386'  # A2386 A2387 TM85 TM86
-# route_df = pd.read_csv(f"Length/route_segments_length_{route_id}.csv")
-# lengths = route_df["length"]
-# stop_id = route_df['start_stop_id']
 
 # avg_speed_df = pd.read_excel(f"C:/Users/Administrator/OneDrive - University College London/24-25 UCL/BCMS/code/speed dist_{route_id}.xlsx")
 travel_time_df = pd.read_excel(f"travel time_norm_{route_id}.xlsx")
@@ -42,7 +39,7 @@ TOTAL_ACTION_DIM = ACTION_DIM * NUM_AGENTS
 HIDDEN_DIM = 256
 HIDDEN_LAYERS = [256, 512, 256]
 
-# 学习率和训练参数
+# Learning rate & training paramenters
 LR_ACTOR = 1e-4
 LR_CRITIC = 2e-4
 LR_DECAY = 0.9998
@@ -50,74 +47,58 @@ GAMMA = 0.995
 TAU = 0.005
 BUFFER_SIZE = 100000
 BATCH_SIZE = 64
-# MIN_EXPERIENCES = max(BATCH_SIZE * 50, 2000)
 MAX_EPISODES = 400
 NUM_STEP = 5 * (len(stop_id) + 1)
 UPDATE_ACTOR_EVERY = 2
 WARMUP_EPISODES = 30
 WARMUP_STEPS = len(stop_id) + 1
 
-# Reward scale factors & Reward weights
+# Reward scale factors (Reward weights)
 REWARD_SCALE = 2.0
 HEADWAY_SCALE = 1.0
 HOLDING_SCALE = 0.2
 BUNCHING_SCALE = 0.8
 
-# Reward weights
-# LAMBDA1 = 0.5
-# LAMBDA2 = 0.2
-# LAMBDA3 = 0.3
 
-# Parameters
+# Environment Parameters
 NUM_STOPS = len(stop_id) + 1
-# STOP_NETWORK = lengths
 TARGET_HEADWAY = 600
-# TOLERANCE = 0.2
 MAX_HOLD = 120
 MAX_OCCUPANCY = 1.0
 BUNCHING_THRESHOLD = 0.1 * TARGET_HEADWAY
 CAPACITY = 140
-
-# 修改探索策略参数
-EPSILON_START = 1.0
-EPSILON_END = 0.2
-EPSILON_DECAY = 0.9998
-
-# 梯度裁剪和正则化
-GRAD_CLIP = 0.5
-WEIGHT_DECAY = 1e-5
-
-# 数值稳定性参数
-MIN_VALUE = 1e-6
-MAX_VALUE = 1e6
-REWARD_CLIP = 5.0
-Q_VALUE_CLIP = 10.0
-
 ALIGHT_TIME = 2  # seconds per passenger
 BOARD_TIME = 3  # seconds per passenger
 DOOR_TIME = 5  # seconds (open/close)
 REST_TIME = 180  # seconds (rest)
-# Reward thresholds
-# SEVERE_BUNCHING_THRESHOLD = 0.6 * TARGET_HEADWAY
-# LARGE_GAP_THRESHOLD = 1.4 * TARGET_HEADWAY
-# NORMAL_RANGE_THRESHOLD = 1.1 * TARGET_HEADWAY
+
+# Exploring
+EPSILON_START = 1.0
+EPSILON_END = 0.2
+EPSILON_DECAY = 0.9998
 
 # Training stability
+GRAD_CLIP = 0.5
+WEIGHT_DECAY = 1e-5
+MIN_VALUE = 1e-6
+MAX_VALUE = 1e6
+REWARD_CLIP = 5.0
+Q_VALUE_CLIP = 10.0
 CLIP_ACTIONS = True
 CLIP_REWARDS = True
 UPDATE_CRITIC_FIRST = True
 
-# 早停机制参数
+# Early stop
 PATIENCE = 50
 MIN_EPISODES = 150
 IMPROVEMENT_THRESHOLD = 0.02
 
 def normalize_state(state):
-    """状态归一化，避免数值过大或过小"""
+    """state normalization"""
     return np.clip(state, -MAX_VALUE, MAX_VALUE)
 
 def normalize_reward(reward):
-    """奖励归一化"""
+    """reward normalization"""
     return np.clip(reward, -REWARD_CLIP, REWARD_CLIP)
 
 # ==== Actor Network ====
@@ -125,10 +106,10 @@ class Actor(nn.Module):
     def __init__(self, state_dim, action_dim):
         super().__init__()
         
-        # 使用LayerNorm替代BatchNorm
+        # LayerNorm
         self.ln_input = nn.LayerNorm(state_dim)
         
-        # 特征提取层
+        # Feature layger
         self.feature_net = nn.Sequential(
             nn.Linear(state_dim, HIDDEN_LAYERS[0]),
             nn.LayerNorm(HIDDEN_LAYERS[0]),
@@ -136,7 +117,7 @@ class Actor(nn.Module):
             nn.Dropout(0.1)
         )
         
-        # 添加残差块
+        # Residual layers
         self.residual_blocks = nn.ModuleList([
             nn.Sequential(
                 nn.Linear(HIDDEN_LAYERS[0], HIDDEN_LAYERS[0]),
@@ -148,7 +129,7 @@ class Actor(nn.Module):
             ) for _ in range(2)
         ])
         
-        # 输出层
+        # Output layers
         self.output_net = nn.Sequential(
             nn.Linear(HIDDEN_LAYERS[0], HIDDEN_LAYERS[0] // 2),
             nn.LayerNorm(HIDDEN_LAYERS[0] // 2),
@@ -170,7 +151,6 @@ class Actor(nn.Module):
         x = self.ln_input(state)
         x = self.feature_net(x)
         
-        # 应用残差块
         for block in self.residual_blocks:
             identity = x
             x = block(x)
@@ -184,7 +164,7 @@ class CentralCritic(nn.Module):
     def __init__(self, total_state_dim, total_action_dim):
         super().__init__()
         
-        # 状态编码器 - 增加层数和正则化
+        # State encoder
         self.state_encoder = nn.Sequential(
             nn.Linear(total_state_dim, HIDDEN_LAYERS[0]),
             nn.LayerNorm(HIDDEN_LAYERS[0]),
@@ -199,7 +179,7 @@ class CentralCritic(nn.Module):
             nn.ReLU()
         )
         
-        # 动作编码器
+        # Action encoder
         self.action_encoder = nn.Sequential(
             nn.Linear(total_action_dim, HIDDEN_LAYERS[0]),
             nn.LayerNorm(HIDDEN_LAYERS[0]),
@@ -224,9 +204,9 @@ class CentralCritic(nn.Module):
             nn.Linear(HIDDEN_LAYERS[0] // 2, 1)
         )
         
-        # 初始化权重
+        # Initialize
         self.apply(self._init_weights)
-        # Q值输出层使用较小的初始化范围
+        
         nn.init.uniform_(self.q_net[-1].weight, -3e-3, 3e-3)
         nn.init.uniform_(self.q_net[-1].bias, -3e-3, 3e-3)
 
@@ -239,15 +219,15 @@ class CentralCritic(nn.Module):
             nn.init.constant_(m.bias, 0)
 
     def forward(self, states, actions):
-        # 数值稳定性检查
+        # Check stability
         states = torch.clamp(states, -MAX_VALUE, MAX_VALUE)
         actions = torch.clamp(actions, -MAX_VALUE, MAX_VALUE)
         
-        # 编码状态和动作
+        # Encode
         state_features = self.state_encoder(states)
         action_features = self.action_encoder(actions)
         
-        # 连接特征并估计Q值
+        # Estimate Q
         combined = torch.cat([state_features, action_features], dim=1)
         return self.q_net(combined)
 
