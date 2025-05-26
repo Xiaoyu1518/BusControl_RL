@@ -307,7 +307,7 @@ class MultiBusSimEnv:
             if headway <= TARGET_HEADWAY:
                 r2 = - norm_hold * occupancy * (1 - norm_headway)
             else:
-                r2 = - norm_hold * occupancy / (1 - norm_headway)
+                r2 = - norm_hold * occupancy * (1 + norm_headway)
             
             # 3. Bunching prevention (r3)
             if headway < BUNCHING_THRESHOLD:
