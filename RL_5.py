@@ -23,8 +23,11 @@ torch.manual_seed(42)
 
 matplotlib.use('Agg')
 
-# Read file dependency
+# 读取基本信息
 route_id = 'A2386'  # A2386 A2387 TM85 TM86
+# route_df = pd.read_csv(f"Length/route_segments_length_{route_id}.csv")
+# lengths = route_df["length"]
+# stop_id = route_df['start_stop_id']
 
 # avg_speed_df = pd.read_excel(f"C:/Users/Administrator/OneDrive - University College London/24-25 UCL/BCMS/code/speed dist_{route_id}.xlsx")
 travel_time_df = pd.read_excel(f"travel time_norm_{route_id}.xlsx")
@@ -39,7 +42,7 @@ TOTAL_ACTION_DIM = ACTION_DIM * NUM_AGENTS
 HIDDEN_DIM = 256
 HIDDEN_LAYERS = [256, 512, 256]
 
-# Learning rate & training paramenters
+# 学习率和训练参数
 LR_ACTOR = 1e-4
 LR_CRITIC = 2e-4
 LR_DECAY = 0.9998
@@ -47,58 +50,74 @@ GAMMA = 0.995
 TAU = 0.005
 BUFFER_SIZE = 100000
 BATCH_SIZE = 64
+# MIN_EXPERIENCES = max(BATCH_SIZE * 50, 2000)
 MAX_EPISODES = 400
-NUM_STEP = 5 * (len(stop_id) + 1)
+NUM_STEP = 6 * (len(stop_id) + 1)
 UPDATE_ACTOR_EVERY = 2
 WARMUP_EPISODES = 30
 WARMUP_STEPS = len(stop_id) + 1
 
-# Reward scale factors (Reward weights)
-REWARD_SCALE = 2.0
+# Reward scale factors & Reward weights
+REWARD_SCALE = 1.0
 HEADWAY_SCALE = 1.0
 HOLDING_SCALE = 0.2
 BUNCHING_SCALE = 0.8
 
+# Reward weights
+# LAMBDA1 = 0.5
+# LAMBDA2 = 0.2
+# LAMBDA3 = 0.3
 
-# Environment Parameters
+# Parameters
 NUM_STOPS = len(stop_id) + 1
+# STOP_NETWORK = lengths
 TARGET_HEADWAY = 600
+# TOLERANCE = 0.2
 MAX_HOLD = 120
 MAX_OCCUPANCY = 1.0
 BUNCHING_THRESHOLD = 0.1 * TARGET_HEADWAY
 CAPACITY = 140
-ALIGHT_TIME = 2  # seconds per passenger
-BOARD_TIME = 3  # seconds per passenger
-DOOR_TIME = 5  # seconds (open/close)
-REST_TIME = 180  # seconds (rest)
 
-# Exploring
+# 修改探索策略参数
 EPSILON_START = 1.0
 EPSILON_END = 0.2
 EPSILON_DECAY = 0.9998
 
-# Training stability
+# 梯度裁剪和正则化
 GRAD_CLIP = 0.5
 WEIGHT_DECAY = 1e-5
-MIN_VALUE = 1e-6
+
+# 数值稳定性参数
+# MIN_VALUE = 1e-6
 MAX_VALUE = 1e6
 REWARD_CLIP = 5.0
-Q_VALUE_CLIP = 10.0
+# Q_VALUE_CLIP = 10.0
+
+ALIGHT_TIME = 2  # seconds per passenger
+BOARD_TIME = 3  # seconds per passenger
+DOOR_TIME = 5  # seconds (open/close)
+REST_TIME = 180  # seconds (rest)
+# Reward thresholds
+# SEVERE_BUNCHING_THRESHOLD = 0.6 * TARGET_HEADWAY
+# LARGE_GAP_THRESHOLD = 1.4 * TARGET_HEADWAY
+# NORMAL_RANGE_THRESHOLD = 1.1 * TARGET_HEADWAY
+
+# Training stability
 CLIP_ACTIONS = True
 CLIP_REWARDS = True
 UPDATE_CRITIC_FIRST = True
 
-# Early stop
+# 早停机制参数
 PATIENCE = 50
 MIN_EPISODES = 150
 IMPROVEMENT_THRESHOLD = 0.02
 
 def normalize_state(state):
-    """state normalization"""
+    """状态归一化，避免数值过大或过小"""
     return np.clip(state, -MAX_VALUE, MAX_VALUE)
 
 def normalize_reward(reward):
-    """reward normalization"""
+    """奖励归一化"""
     return np.clip(reward, -REWARD_CLIP, REWARD_CLIP)
 
 # ==== Actor Network ====
@@ -106,10 +125,10 @@ class Actor(nn.Module):
     def __init__(self, state_dim, action_dim):
         super().__init__()
         
-        # LayerNorm
+        # 使用LayerNorm替代BatchNorm
         self.ln_input = nn.LayerNorm(state_dim)
         
-        # Feature layger
+        # 特征提取层
         self.feature_net = nn.Sequential(
             nn.Linear(state_dim, HIDDEN_LAYERS[0]),
             nn.LayerNorm(HIDDEN_LAYERS[0]),
@@ -117,7 +136,7 @@ class Actor(nn.Module):
             nn.Dropout(0.1)
         )
         
-        # Residual layers
+        # 添加残差块
         self.residual_blocks = nn.ModuleList([
             nn.Sequential(
                 nn.Linear(HIDDEN_LAYERS[0], HIDDEN_LAYERS[0]),
@@ -129,7 +148,7 @@ class Actor(nn.Module):
             ) for _ in range(2)
         ])
         
-        # Output layers
+        # 输出层
         self.output_net = nn.Sequential(
             nn.Linear(HIDDEN_LAYERS[0], HIDDEN_LAYERS[0] // 2),
             nn.LayerNorm(HIDDEN_LAYERS[0] // 2),
@@ -151,6 +170,7 @@ class Actor(nn.Module):
         x = self.ln_input(state)
         x = self.feature_net(x)
         
+        # 应用残差块
         for block in self.residual_blocks:
             identity = x
             x = block(x)
@@ -164,7 +184,7 @@ class CentralCritic(nn.Module):
     def __init__(self, total_state_dim, total_action_dim):
         super().__init__()
         
-        # State encoder
+        # 状态编码器 - 增加层数和正则化
         self.state_encoder = nn.Sequential(
             nn.Linear(total_state_dim, HIDDEN_LAYERS[0]),
             nn.LayerNorm(HIDDEN_LAYERS[0]),
@@ -179,7 +199,7 @@ class CentralCritic(nn.Module):
             nn.ReLU()
         )
         
-        # Action encoder
+        # 动作编码器
         self.action_encoder = nn.Sequential(
             nn.Linear(total_action_dim, HIDDEN_LAYERS[0]),
             nn.LayerNorm(HIDDEN_LAYERS[0]),
@@ -204,9 +224,9 @@ class CentralCritic(nn.Module):
             nn.Linear(HIDDEN_LAYERS[0] // 2, 1)
         )
         
-        # Initialize
+        # 初始化权重
         self.apply(self._init_weights)
-        
+        # Q值输出层使用较小的初始化范围
         nn.init.uniform_(self.q_net[-1].weight, -3e-3, 3e-3)
         nn.init.uniform_(self.q_net[-1].bias, -3e-3, 3e-3)
 
@@ -219,15 +239,15 @@ class CentralCritic(nn.Module):
             nn.init.constant_(m.bias, 0)
 
     def forward(self, states, actions):
-        # Check stability
+        # 数值稳定性检查
         states = torch.clamp(states, -MAX_VALUE, MAX_VALUE)
         actions = torch.clamp(actions, -MAX_VALUE, MAX_VALUE)
         
-        # Encode
+        # 编码状态和动作
         state_features = self.state_encoder(states)
         action_features = self.action_encoder(actions)
         
-        # Estimate Q
+        # 连接特征并估计Q值
         combined = torch.cat([state_features, action_features], dim=1)
         return self.q_net(combined)
 
@@ -326,13 +346,13 @@ class MultiBusSimEnv:
             # 1. Headway deviation reward (r1)
             norm_headway = abs(self.get_normalized_headway(headway))
             if norm_headway <= 0.2:
-                r1 = 1.0 - 0.5 * norm_headway # 1.0 - norm_headway
+                r1 = 1.0 - 0.2 * norm_headway # 1.0 - norm_headway
             elif norm_headway <= 0.5:
-                r1 = 1.0 - 0.8 * norm_headway # 0.8 * (1 - norm_headway)
+                r1 = 1.0 - 0.5 * norm_headway # 0.8 * (1 - norm_headway)
+            elif norm_headway <= 0.9:
+                r1 = 1.0 - 0.9 * norm_headway # 0.5 * (1 - norm_headway)
             else:
-                r1 = 1.0 - 1.0 * norm_headway # 0.5 * (1 - norm_headway)
-            # else:
-            #     r1 = - 0.2 * norm_headway
+                r1 = 1.0 - 1.0 * norm_headway
             
             # 2. Holding and delay penalty (r2)
             norm_hold = np.clip(hold_time / MAX_HOLD, 0, 1)
@@ -340,13 +360,13 @@ class MultiBusSimEnv:
             if headway <= TARGET_HEADWAY:
                 r2 = - norm_hold * occupancy * (1 - norm_headway)
             else:
-                r2 = - norm_hold * occupancy
+                r2 = - norm_hold * occupancy / (1 - norm_headway)
             
             # 3. Bunching prevention (r3)
-            if headway <= BUNCHING_THRESHOLD:
+            if headway < BUNCHING_THRESHOLD:
                 r3 = - 0.2 * (1 - headway / BUNCHING_THRESHOLD)
             else:
-                r3 = 0.2 * min(2, (headway / BUNCHING_THRESHOLD))
+                r3 = 0
             # if norm_headway < 0.1:
             #     r3 = 1.0
             # elif norm_headway < 0.3:
@@ -409,9 +429,10 @@ class MultiBusSimEnv:
                     mu = float(row["mu"])
                     sigma = float(row["sigma"])
                     if pd.notna(row['mu']) and pd.notna(row['sigma']) and mu > 0 and sigma > 0:
-                        base_travel_time = np.random.normal(row['mu'], row['sigma'])
+                        base_travel_time = np.random.normal(row['mu'], min(5, row['sigma']))
                     else:
-                        base_travel_time = sample_from_kde_each_row(row, data_columns)
+                        max_col_name = row[data_columns].astype(float).idxmax()
+                        base_travel_time = np.random.normal(max_col_name, 5) # sample_from_kde_each_row(row, data_columns)
                     base_travel_time = max(base_travel_time, 30)
                 else:  # 终点站-起点站
                     base_travel_time = 0
@@ -462,7 +483,7 @@ class MultiBusSimEnv:
                 new_occupancy = self.state[i][2]
                 # 获取最近的到达时间记录
                 recent_arrivals = [t for t in self.arrival_history[next_stop] 
-                                    if t <= arrival_time]
+                                    if t < arrival_time - 0.1]
                 if recent_arrivals:
                     # 计算与前车的时间间隔
                     headway = arrival_time - max(recent_arrivals)  # 计算与最近前车的时间差
@@ -660,10 +681,10 @@ def train_bus_controller():
                     
                     if cur_stop_id == NUM_STOPS - 1:
                         action_val = 0.0
-                    elif headway_norm < -0.5:  # 间隔过小
-                        action_val = np.random.uniform(0.5, 0.8)
-                    elif headway_norm > 0.5:  # 间隔过大
-                        action_val = np.random.uniform(0.2, 0.5)
+                    elif headway_norm < -0.8:  # 间隔过小
+                        action_val = np.random.uniform(0.8, 1.0)
+                    elif headway_norm > 0.8:  # 间隔过大
+                        action_val = np.random.uniform(0.0, 0.2)
                     # elif occupancy > 0.8:  # 车辆较满
                     #     action_val = np.random.uniform(0.0, 0.2)
                     else:  # 正常情况
@@ -698,17 +719,27 @@ def train_bus_controller():
                     actions_b_tensor = torch.FloatTensor(actions_b.reshape(BATCH_SIZE, -1)).to(device)
                     rewards_b_tensor = torch.FloatTensor(rewards_b).unsqueeze(1).to(device)
                     next_states_b_tensor = torch.FloatTensor(next_states_b.reshape(BATCH_SIZE, -1)).to(device)
-                    
+
+                    stop_ids = states_b_tensor[:, ::STATE_DIM]  # 所有 agent 的 stop_id
+                    non_terminal_mask = (stop_ids != (NUM_STOPS - 1)).all(dim=1)  # 只选非终点的样本
+
+                    # 2筛选
+                    states_b_tensor_non_terminal = states_b_tensor[non_terminal_mask]
+                    actions_b_tensor_non_terminal = actions_b_tensor[non_terminal_mask]
+                    rewards_b_tensor_non_terminal = rewards_b_tensor[non_terminal_mask]
+                    next_states_b_tensor_non_terminal = next_states_b_tensor[non_terminal_mask]
+
                     with torch.no_grad():
-                        next_actions = torch.cat([
-                            target_actors[i](next_states_b_tensor[:, i*STATE_DIM:(i+1)*STATE_DIM])
+                        next_actions_non_terminal = torch.cat([
+                            target_actors[i](next_states_b_tensor_non_terminal[:, i*STATE_DIM:(i+1)*STATE_DIM])
                             for i in range(NUM_AGENTS)
                         ], dim=1)
-                        target_q = target_critic(next_states_b_tensor, next_actions)
-                        y = rewards_b_tensor + GAMMA * target_q
+                        target_q_non_terminal = target_critic(next_states_b_tensor_non_terminal, next_actions_non_terminal)
+                        y = rewards_b_tensor_non_terminal + GAMMA * target_q_non_terminal
+
                         # y = torch.clamp(y, -Q_VALUE_CLIP, Q_VALUE_CLIP)
                     
-                    current_q = critic(states_b_tensor, actions_b_tensor)
+                    current_q = critic(states_b_tensor_non_terminal, actions_b_tensor_non_terminal)
                     q_reg = 1e-3 * torch.mean(current_q ** 2)  # 惩罚 Q_pred 过大
                     critic_loss = F.smooth_l1_loss(current_q, y) + q_reg
                     
@@ -819,7 +850,8 @@ def train_bus_controller():
         # 早停检查
         if episode > MIN_EPISODES and patience_counter >= PATIENCE:
             print(f"\nEarly stopping triggered. No improvement for {PATIENCE} episodes.")
-            break
+            patience_counter = 0
+            # break
     
     print("\nTraining finished.")
     print(f"Best average reward: {best_reward:.2f}")
@@ -882,4 +914,6 @@ if __name__ == "__main__":
         evaluate_trained_policy()
     else:
         print("\nNo best policy found during training.")
+
+
 
