@@ -40,7 +40,7 @@ HIDDEN_LAYERS = [256, 512, 256]
 # Network and Training parameters
 LR_ACTOR = 1e-4
 LR_CRITIC = 2e-4
-LR_DECAY = 0.9998
+LR_DECAY = 0.995
 GAMMA = 0.995
 TAU = 0.005
 BUFFER_SIZE = 100000
@@ -80,10 +80,6 @@ ALIGHT_TIME = 2  # seconds per passenger
 BOARD_TIME = 3  # seconds per passenger
 DOOR_TIME = 5  # seconds (open/close)
 REST_TIME = 180  # seconds (rest)
-
-CLIP_ACTIONS = True
-CLIP_REWARDS = True
-UPDATE_CRITIC_FIRST = True
 
 # Early stop for monitor
 PATIENCE = 50
