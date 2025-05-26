@@ -23,14 +23,10 @@ torch.manual_seed(42)
 
 matplotlib.use('Agg')
 
-# 读取基本信息
+# Read file
 route_id = 'A2386'  # A2386 A2387 TM85 TM86
-# route_df = pd.read_csv(f"Length/route_segments_length_{route_id}.csv")
-# lengths = route_df["length"]
-# stop_id = route_df['start_stop_id']
 
-# avg_speed_df = pd.read_excel(f"C:/Users/Administrator/OneDrive - University College London/24-25 UCL/BCMS/code/speed dist_{route_id}.xlsx")
-travel_time_df = pd.read_excel(f"travel time_norm_{route_id}.xlsx")
+travel_time_df = pd.read_excel(f"TravelTime/travel_time_norm_{route_id}.xlsx")
 stop_id = travel_time_df['start_stop_id']
 
 # ==== Hyperparameters ====
