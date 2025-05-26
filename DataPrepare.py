@@ -11,7 +11,7 @@ from scipy.optimize import curve_fit
 def normal_dist(x, mu, sigma, amplitude):
     return amplitude * np.exp(-(x - mu)**2 / (2 * sigma**2))
 
-def travel_time_dist(df_order, df_values):
+def travel_time_dist(df_order, df_values, route_id):
   df_order = df_order[['start_stop_id', 'end_stop_id']].copy()
   df_order.columns = ['start_stop_id', 'end_stop_id']
   df_sorted = pd.merge(df_order, df_values, on=['start_stop_id', 'end_stop_id'], how='left')
@@ -109,4 +109,4 @@ for route_id in prob_dist['route_id'].unique():
 df_order = pd.read_csv(f"/Route/route_segments_{ROUTE_ID}.csv")   # First file
 df_values = pd.read_excel(f"/TravelTime/travel_time_{ROUTE_ID}.xlsx")  # Second file
 
-travel_time_dist(df_order, df_values)
+travel_time_dist(df_order, df_values, ROUTE_ID)
