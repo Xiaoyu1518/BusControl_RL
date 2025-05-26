@@ -390,7 +390,7 @@ class MultiBusSimEnv:
                                 if arrive_diff > 0:  # if the front bus is late, make sure no overtaking
                                     arrival_time = max(arrival_time, arrival_time + arrive_diff + 10)     
               
-                # 3. update state
+                # 5. update state
                 new_occupancy = np.clip(
                     (occupancy * CAPACITY + board_passengers - alight_passengers) / CAPACITY,
                     0, 1
@@ -412,7 +412,7 @@ class MultiBusSimEnv:
                 self.state[i] = prev_state[i] if prev_state is not None and len(prev_state) > i else np.zeros(STATE_DIM) 
                 continue
         
-        # 4. calculate headway and update state
+        # 6. calculate headway and update state
         for i in range(NUM_AGENTS):
             try:
                 arrival_time = self.global_time[i]
@@ -435,7 +435,7 @@ class MultiBusSimEnv:
             except Exception as e:
                 print(f"Warning: Error in headway calculation for agent {i}: {str(e)}")
                 headway = TARGET_HEADWAY
-            # 5. calculate reward
+            # 7. calculate reward
             try:
                 if training:
                     r1, r2, r3 = self.calculate_reward_components(
