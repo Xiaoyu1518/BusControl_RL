@@ -583,7 +583,7 @@ def plot_training_stats(actor_losses, critic_losses, r1_list, r2_list, r3_list):
     plt.grid(True)
 
     plt.tight_layout()
-    plt.savefig("training_debug_stats.png")
+    plt.savefig("Result/training_debug_stats.png")
     # plt.show()
 
 def plot_training_results(reward_history):
@@ -607,7 +607,7 @@ def plot_training_results(reward_history):
     plt.ylabel("Total Reward")
     plt.legend()
     plt.grid(True)
-    plt.savefig("training_reward_curve.png")
+    plt.savefig("Result/training_reward_curve.png")
     # plt.show()
 
 def train_bus_controller():
@@ -821,7 +821,7 @@ def train_bus_controller():
             best_reward = avg_reward
             best_actors = [actor.state_dict() for actor in actors]
             for i, state_dict in enumerate(best_actors):
-                torch.save(state_dict, f"best_actor_agent{i}.pth")
+                torch.save(state_dict, f"Result/best_actor_agent{i}.pth")
             print(f"++ New Best Avg Reward: {best_reward:.2f}")
             last_improvement = episode
             patience_counter = 0
