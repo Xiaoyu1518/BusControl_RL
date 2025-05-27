@@ -1,7 +1,7 @@
 import torch
 
 # import Actor 
-from RL_5 import Actor  
+from RL_bus_A2386 import Actor  
 TARGET_HEADWAY = 600 # same as training
     
 # Parameters (same as training)
