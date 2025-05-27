@@ -268,12 +268,16 @@ class MultiBusSimEnv:
         
         # initialize state
         self.state = np.zeros((self.num_agents, STATE_DIM), dtype=np.float32)
-        self.state[:, 0] = 0  # the first stop
+
+        # stop id
+        self.state[:, 0] = 0  # start from the first stop
         
         # randomly set departure headways
         random_headways = np.random.uniform(0.8 * TARGET_HEADWAY, 1.2 * TARGET_HEADWAY, size=self.num_agents)
         random_headways = np.clip(random_headways, 0.8 * TARGET_HEADWAY, 1.2 * TARGET_HEADWAY)
-        self.state[:, 1] = random_headways
+        # Store normalized headways in state instead of raw values
+        for i in range(self.num_agents):
+            self.state[i, 1] = self.get_normalized_headway(random_headways[i])
         
         # randomly set initial occupancy
         random_occupancy = np.random.uniform(0, 0.3, size=self.num_agents)
