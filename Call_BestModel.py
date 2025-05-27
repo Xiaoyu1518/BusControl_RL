@@ -18,7 +18,7 @@ shared_actor.eval()
 print("Loaded shared actor model from", BEST_MODEL_PATH)
 
 # use normalized headway instead of raw value
-def get_normalized_headway(self, headway):
+def get_normalized_headway(headway):
         """limit headway to [-1, 1]，check stability"""
         normalized = np.clip(1 * (headway - TARGET_HEADWAY) / TARGET_HEADWAY, -1, 1)
         if np.isnan(normalized) or np.isinf(normalized):
