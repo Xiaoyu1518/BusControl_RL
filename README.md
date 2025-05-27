@@ -101,6 +101,7 @@ By integrating a simulation environment, centralized critic, and custom reward f
   - **Critic:** Assess the actor's action (Q-score), predict Q and real profit, and minimize the difference
 
 - **Multi-Agent Deep Deterministic Policy Gradient (MADDPG)**
+![Reinforcement learning structure](Result/RL_structure.png)
 
 ---
 
