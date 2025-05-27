@@ -43,7 +43,7 @@ By integrating a simulation environment, centralized critic, and custom reward f
 
 > **Note for states:**  
 > - **Stop ID (INT):** Stop index for holding decision  
-> - **Forward headway (FLOAT):** Time gap between consecutive buses [10, 2×TARGET_HEADWAY] (seconds)  
+> - **Forward headway (FLOAT):** Time gap between consecutive buses [10, 2×TARGET_HEADWAY] (seconds), normalized by TARGET_HEADWAY within range [-1,1]
 > - **Occupancy (FLOAT):** Passengers / bus capacity [0,1]  
 > - **Fleet order (INT):** Sequential bus number, reordered after one loop
 
