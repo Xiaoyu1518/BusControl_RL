@@ -440,7 +440,7 @@ class MultiBusSimEnv:
                 if training:
                     r1, r2, r3 = self.calculate_reward_components(
                         headway,
-                        float(actions[i][0]) * MAX_HOLD if next_stop != NUM_STOPS - 1 else 0,
+                        float(actions[i][0]) * MAX_HOLD if next_stop != 0 else 0,
                         new_occupancy
                     )
                     
