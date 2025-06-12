@@ -26,7 +26,6 @@ def get_normalized_headway(headway):
         return normalized
     
 # load states (Example)
-NUM_STATES = 5
 states = [
     [1, 50, 0.2, 0],   
     [1, 150, 0.3, 1],   
@@ -34,6 +33,8 @@ states = [
     [1, 600, 0.6, 3],   
     [1, 800, 0.8, 4]    
 ]
+NUM_STATES = len(states)
+
 # normalization
 normalized_states = [
     [s[0], get_normalized_headway(s[1]), s[2], s[3]]
@@ -47,6 +48,6 @@ for i in range(NUM_STATES):
     with torch.no_grad():
         action = shared_actor(state_tensor).numpy()[0]
     actions.append(action)
-    print(f'state: {states[i]}, action: {action}')
+    print(f'state: {[f"{x:.2f}" for x in normalized_states[i]]}, action: {action[0]:.2f}')
 
 print("Generated policies")
