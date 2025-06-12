@@ -33,7 +33,7 @@ By integrating a simulation environment, centralized critic, and custom reward f
 
 | Parameter    | Default Value | Description                                                                                  |
 |--------------|---------------|----------------------------------------------------------------------------------------------|
-| NUM_AGENTS   | 12            | Number of agents (buses) running in one route                                                |
+| NUM_AGENTS   | 13            | Number of agents (buses) running in one route                                                |
 | STATE_DIM    | 4             | `[stop ID, forward headway, occupancy, fleet order]`                                         |
 | ACTION_DIM   | 1             | Holding level [0,1]                                                                          |
 | HIDDEN_DIM   | 256           | Number of neurons in hidden layers                                                           |
@@ -61,11 +61,11 @@ By integrating a simulation environment, centralized critic, and custom reward f
 | ALIGHT_TIME         | 2                         | Alighting time per passenger (seconds)                                                          |
 | BOARD_TIME          | 3                         | Boarding time per passenger (seconds)                                                           |
 | DOOR_TIME           | 5                         | Door open/close time (seconds)                                                                  |
-| REST_TIME           | 120 sec                   | Rest time for the final stop before restarting                                                  |
-| REWARD_SCALE        | 2                         | Overall scale for rewards                                                                       |
-| HEADWAY_SCALE       | 1                         | Weight for headway deviation                                                                    |
-| HOLDING_SCALE       | 0.2                       | Weight for holding cost                                                                         |
-| BUNCHING_SCALE      | 0.8                       | Weight for bunching penalty                                                                      |
+| REST_TIME           | 180 sec                   | Rest time for the final stop before restarting                                                  |
+| REWARD_SCALE        | 0.1                       | Overall scale for rewards                                                                       |
+| HEADWAY_SCALE       | 2.0                       | Weight for headway deviation                                                                    |
+| HOLDING_SCALE       | 0.5                       | Weight for holding cost                                                                         |
+                                                              |
 
 ---
 
@@ -73,23 +73,23 @@ By integrating a simulation environment, centralized critic, and custom reward f
 
 | Parameter           | Default Value | Description                                                                                     |
 |---------------------|---------------|-------------------------------------------------------------------------------------------------|
-| BATCH_SIZE          | 64            | Number of experiences (transitions) sampled from the replay buffer                              |
-| BUFFER_SIZE         | 100000        | Maximum number of past transitions stored                                                        |
-| GAMMA               | 0.995         | Discount factor                                                                                 |
-| TAU                 | 0.005         | Soft update factor for target networks                                                          |
-| MAX_EPISODES        | 400           | Maximum training episodes                                                                        |
+| BATCH_SIZE          | 128           | Number of experiences (transitions) sampled from the replay buffer                              |
+| BUFFER_SIZE         | 20000         | Maximum number of past transitions stored                                                        |
+| GAMMA               | 0.99          | Discount factor                                                                                 |
+| TAU                 | 0.01          | Soft update factor for target networks                                                          |
+| MAX_EPISODES        | 500           | Maximum training episodes                                                                        |
 | NUM_STEP            | 6×(len(stop_id)+1) | Training step limit                                                                             |
-| WARMUP_EPISODES     | 30            | Episodes for collecting experience without updating networks                                     |
-| WARMUP_STEPS        | len(stop_id)+1| Initial steps without training in each episode                                                   |
-| EPSILON_START       | 1.0           | Initial exploration threshold                                                                     |
-| EPSILON_END         | 0.2           | Minimum exploration threshold                                                                     |
-| EPSILON_DECAY       | 0.995         | Exploration decay rate                                                                           |
-| GRAD_CLIP           | 0.5           | Gradient norm clipping for actor/critic                                                           |
+| WARMUP_EPISODES     | 10            | Episodes for collecting experience without updating networks                                     |
+| WARMUP_STEPS        | 5             | Initial steps without training in each episode                                                   |
+| EPSILON_START       | 0.9           | Initial exploration threshold                                                                     |
+| EPSILON_END         | 0.02          | Minimum exploration threshold                                                                     |
+| EPSILON_DECAY       | 0.99          | Exploration decay rate                                                                           |
+| GRAD_CLIP           | 1.0           | Gradient norm clipping for actor/critic                                                           |
 | WEIGHT_DECAY        | 1e-5          | Regularization weight decay                                                                       |
 | MAX_VALUE           | 1e6           | Value clipping for stability                                                                      |
 | REWARD_CLIP         | 5.0           | Reward clipping for stability                                                                      |
 | PATIENCE            | 50            | Max episodes without improvement                                                                   |
-| MIN_EPISODES        | 150           | Minimum training episodes                                                                          |
+| MIN_EPISODES        | 100           | Minimum training episodes                                                                          |
 | IMPROVEMENT_THRESHOLD | 0.02       | Reward increment threshold for improvement                                                          |
 
 ---
