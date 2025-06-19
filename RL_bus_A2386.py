@@ -25,7 +25,7 @@ matplotlib.use('Agg')
 
 # Read file
 route_id = 'A2386'  # A2386 A2387 TM85 TM86
-travel_time_df = pd.read_excel(f"travel time_norm_{route_id}.xlsx")
+travel_time_df = pd.read_excel(f"TravelTime\travel_time_norm_{route_id}.xlsx")
 stop_id = travel_time_df['start_stop_id']
 
 # Hyperparameters
