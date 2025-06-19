@@ -3,6 +3,15 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
+"""
+The model should be called at the time of arrival of the bus.
+    The first state: the arriving stop ID.
+    The second state: the headway (the time gap of the arrival time of the previous bus at this stop)
+    The third state: occupancy
+    The fourth state: the bus's position in the fleet of the route (e.g., the first bus, the second bus, etc)
+
+"""
+
 # Parameters (same as training)
 STATE_DIM = 4       # state dimension
 ACTION_DIM = 1      # action dimension
@@ -11,19 +20,10 @@ TARGET_HEADWAY = 600
 from RL_bus_A2386 import Actor 
 
 def deploy_action_per_vehicle(state_dict, actor_models):
-    """
-    输入：
-        state_dict: dict，键为 bus_id，值为 state 向量（长度为4）
-        actor_models: list，长度为 num_agents，每个是一个已加载的 Actor 模型
-    返回：
-        actions: dict，键为 bus_id，值为输出动作
-    """
     actions = {}
     
     for bus_id, state in state_dict.items():
         state_tensor = torch.FloatTensor(state).unsqueeze(0)  # [1, 4]
-        
-        # 第四个元素是 agent_id
         agent_id = int(state[3])
         assert 0 <= agent_id < len(actor_models), f"Invalid agent_id {agent_id} for {bus_id}"
 
@@ -35,7 +35,7 @@ def deploy_action_per_vehicle(state_dict, actor_models):
     
     return actions
 
-# 加载模型
+# load models
 actor_models = []
 
 for i in range(NUM_AGENTS):
@@ -53,7 +53,7 @@ def get_normalized_headway(headway):
     return normalized
 
 
-# 测试
+# Test 
 states = [
     [5, 100, 0.3, 0],   
     [5, 100, 0.3, 1],   
@@ -73,7 +73,7 @@ normalized_states = [
     for s in states
 ]
 
-# 转成带 bus_id 的 state_dict 格式
+# transform
 state_dict = {f"bus_{i}": state for i, state in enumerate(normalized_states)}
 
 actions = deploy_action_per_vehicle(state_dict, actor_models)
