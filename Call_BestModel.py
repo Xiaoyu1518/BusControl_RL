@@ -1,37 +1,69 @@
 import torch
+import numpy as np
+import torch.nn as nn
+import torch.nn.functional as F
 
-# import Actor 
-from RL_bus_A2386 import Actor  
-TARGET_HEADWAY = 600 # same as training
-    
 # Parameters (same as training)
-STATE_DIM = 4       # staete dimension
+STATE_DIM = 4       # state dimension
 ACTION_DIM = 1      # action dimension
+NUM_AGENTS = 13
+TARGET_HEADWAY = 600
+from RL_bus_A2386 import Actor 
 
-# Load the best model (Example)
-BEST_AGENT = 3
-BEST_MODEL_PATH = f"Result/best_actor_agent{BEST_AGENT}.pth"
+def deploy_action_per_vehicle(state_dict, actor_models):
+    """
+    输入：
+        state_dict: dict，键为 bus_id，值为 state 向量（长度为4）
+        actor_models: list，长度为 num_agents，每个是一个已加载的 Actor 模型
+    返回：
+        actions: dict，键为 bus_id，值为输出动作
+    """
+    actions = {}
+    
+    for bus_id, state in state_dict.items():
+        state_tensor = torch.FloatTensor(state).unsqueeze(0)  # [1, 4]
+        
+        # 第四个元素是 agent_id
+        agent_id = int(state[3])
+        assert 0 <= agent_id < len(actor_models), f"Invalid agent_id {agent_id} for {bus_id}"
 
-shared_actor = Actor(STATE_DIM, ACTION_DIM)
-shared_actor.load_state_dict(torch.load(BEST_MODEL_PATH))
-shared_actor.eval() 
-print("Loaded shared actor model from", BEST_MODEL_PATH)
+        actor = actor_models[agent_id]
+        with torch.no_grad():
+            action = actor(state_tensor).numpy()[0]
+
+        actions[bus_id] = action
+    
+    return actions
+
+# 加载模型
+actor_models = []
+
+for i in range(NUM_AGENTS):
+    model = Actor(STATE_DIM, ACTION_DIM)
+    model.load_state_dict(torch.load(f"Result\\247577\\best_actor_agent{i}.pth", map_location="cpu"))
+    model.eval()
+    actor_models.append(model)
 
 # use normalized headway instead of raw value
 def get_normalized_headway(headway):
-        """limit headway to [-1, 1]，check stability"""
-        normalized = np.clip(1 * (headway - TARGET_HEADWAY) / TARGET_HEADWAY, -1, 1)
-        if np.isnan(normalized) or np.isinf(normalized):
-            return 0.0  # error
-        return normalized
-    
-# load states (Example)
+    """limit headway to [-1, 1]，check stability"""
+    normalized = np.clip(1 * (headway - TARGET_HEADWAY) / TARGET_HEADWAY, -1, 1)
+    if np.isnan(normalized) or np.isinf(normalized):
+        return 0.0  # error
+    return normalized
+
+
+# 测试
 states = [
-    [1, 50, 0.2, 0],   
-    [1, 150, 0.3, 1],   
-    [1, 300, 0.4, 2],   
-    [1, 600, 0.6, 3],   
-    [1, 800, 0.8, 4]    
+    [5, 100, 0.3, 0],   
+    [5, 100, 0.3, 1],   
+    [5, 100, 0.3, 2],   
+    [5, 100, 0.3, 3],   
+    [5, 100, 0.3, 4],
+    [5, 100, 0.3, 5],
+    [5, 100, 0.3, 6],
+    [5, 100, 0.3, 7],
+    [5, 100, 0.3, 8],
 ]
 NUM_STATES = len(states)
 
@@ -41,13 +73,10 @@ normalized_states = [
     for s in states
 ]
 
-# Generate actions
-actions = []
-for i in range(NUM_STATES):
-    state_tensor = torch.FloatTensor(normalized_states[i]).unsqueeze(0)  # (1, STATE_DIM)
-    with torch.no_grad():
-        action = shared_actor(state_tensor).numpy()[0]
-    actions.append(action)
-    print(f'state: {[f"{x:.2f}" for x in normalized_states[i]]}, action: {action[0]:.2f}')
+# 转成带 bus_id 的 state_dict 格式
+state_dict = {f"bus_{i}": state for i, state in enumerate(normalized_states)}
 
-print("Generated policies")
+actions = deploy_action_per_vehicle(state_dict, actor_models)
+
+for bus, act in actions.items():
+    print(f"{bus} → agent {int(state_dict[bus][3])} → action: {act}")
