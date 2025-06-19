@@ -297,12 +297,10 @@ class ReplayBuffer:
 class MultiBusSimEnv:
     def __init__(self, num_agents):
         self.num_agents = num_agents
-        # self.segment_distances = np.array(STOP_NETWORK)
         self.constant_speed = 33
         self.global_time = np.zeros(num_agents)
         self.arrival_history = {stop_id: [] for stop_id in range(NUM_STOPS)}
         self.last_departure_times = np.zeros(num_agents)
-        # self.cumulative_delays = np.zeros(num_agents)
         self.state = self.reset()
         self.step_count = 0
         
@@ -370,12 +368,13 @@ class MultiBusSimEnv:
                 # 2. holding reward 
                 if hold_time > 0:
                     holding_cost = hold_time / MAX_HOLD    # [0, 1]
-                    hold_reward = - occupancy * holding_cost
+                    occupancy_factor = occupancy * 2.0 
+                    hold_reward = - holding_cost * occupancy_factor
                 else:
                     if headway >= TARGET_HEADWAY:
                         hold_reward = 0.1  # When holding is not necessary, it is right not to hold
                     else:
-                        hold_reward = -0.1  # When holding is required, there is a slight penalty for not holding
+                        hold_reward = -0.1 * (1 + occupancy)  # When holding is required, there is a slight penalty for not holding
                 
                 return headway_reward, hold_reward
             
@@ -413,7 +412,7 @@ class MultiBusSimEnv:
                 hold_time = float(action[0]) * MAX_HOLD if not (cur_stop_id == NUM_STOPS - 1) else 0
                 total_dwell = np.clip(base_dwell + hold_time, 0, MAX_HOLD * 2)
                 
-                # 3. travel time
+                # 3. travel time -- more randomness
                 data_columns = travel_time_df.columns[3:]
                 if cur_stop_id < NUM_STOPS - 1:  # non-final-stop
                     row = travel_time_df[(travel_time_df['start_stop_id'] == stop_id.iloc[cur_stop_id])].iloc[0]
@@ -536,43 +535,6 @@ def soft_update(target, source, tau):
     for target_param, source_param in zip(target.parameters(), source.parameters()):
         target_param.data.copy_(tau * source_param.data + (1.0 - tau) * target_param.data)
 
-def plot_training_stats(actor_losses, critic_losses, r1_list, r2_list, r3_list):
-    # safety check
-    if not all([actor_losses, critic_losses, r1_list, r2_list, r3_list]):
-        print("Warning: Some training statistics are empty")
-        return
-        
-    plt.figure(figsize=(14, 8))
-
-    plt.subplot(2, 1, 1)
-    for i in range(NUM_AGENTS):
-        if actor_losses[i]:  # safety check
-            plt.plot(actor_losses[i], marker='o', linestyle='none', markersize=1.5, label=f'Actor {i}')
-    if critic_losses:  # safety check
-        plt.plot(critic_losses, marker='o', linestyle='none', markersize=1.5, label='Critic', linewidth=2, color='black')
-    plt.title("Actor & Critic Losses")
-    plt.xlabel("Training Steps")
-    plt.ylabel("Loss")
-    plt.legend()
-    plt.grid(True)
-
-    plt.subplot(2, 1, 2)
-    if r1_list:  # safety check
-        plt.plot(r1_list, marker='o', linestyle='none', markersize=1.5, label='r1: Headway Dev')
-    if r2_list:  
-        plt.plot(r2_list, marker='o', linestyle='none', markersize=1.5, label='r2: Holding Penalty')
-    if r3_list:  
-        plt.plot(r3_list, marker='o', linestyle='none', markersize=1.5, label='r3: Bunching Penalty')
-    plt.title("Reward Components Over Time")
-    plt.xlabel("Training Steps")
-    plt.ylabel("Reward")
-    plt.legend()
-    plt.grid(True)
-
-    plt.tight_layout()
-    plt.savefig("training_debug_stats.png")
-    # plt.show()
-
 def plot_training_results(reward_history):
     if not reward_history:  # safety check
         print("Warning: No reward history to plot")
@@ -648,7 +610,7 @@ def train_bus_controller():
         states = env.reset()
         states = normalize_state(states)
         total_reward_for_episode = 0
-        episode_r1, episode_r2, episode_r3 = [], [], []
+        episode_r1, episode_r2 = [], []
         episode_critic_losses, episode_actor_losses = [], []
         episode_actions = []
         episode_q_pred, episode_q_target = [], []
@@ -675,16 +637,19 @@ def train_bus_controller():
                     else:
                         #action_val = np.random.uniform(0.0, 1.0)
                         # Heuristic explore
-                        if headway_norm <= -0.8:  
-                            base_action = 0.8 
-                            noise = np.random.uniform(-0.2, 0.2)  
-                            action_val = np.clip(base_action + noise, 0.0, 1.0)
-                        elif headway_norm <= -0.5:  
-                            base_action = 0.5
-                            noise = np.random.uniform(-0.2, 0.2)
-                            action_val = np.clip(base_action + noise, 0.0, 1.0)
-                        else:  
-                            action_val = np.random.uniform(0.0, 1.0) 
+                         if occupancy > 0.8:
+                            action_val = np.random.uniform(0.1, 0.3)
+                        else:
+                            if headway_norm <= -0.8:  
+                                base_action = 0.8 
+                                noise = np.random.uniform(-0.2, 0.2)  
+                                action_val = np.clip(base_action + noise, 0.0, 1.0)
+                            elif headway_norm <= -0.5:  
+                                base_action = 0.5
+                                noise = np.random.uniform(-0.2, 0.2)
+                                action_val = np.clip(base_action + noise, 0.0, 1.0)
+                            else:  
+                                action_val = np.random.uniform(0.0, 1.0) 
                        
                     actions.append(np.array([action_val]))
                 else:
@@ -877,7 +842,6 @@ def train_bus_controller():
         if episode % 5 == 0:
             mean_r1 = np.mean(episode_r1) if episode_r1 else 0
             mean_r2 = np.mean(episode_r2) if episode_r2 else 0
-            # mean_r3 = np.mean(episode_r3) if episode_r3 else 0
             mean_critic_loss = np.mean(episode_critic_losses) if episode_critic_losses else 0
             mean_actor_loss = np.mean(episode_actor_losses) if episode_actor_losses else 0
             mean_action = np.mean(episode_actions) if episode_actions else 0.0
