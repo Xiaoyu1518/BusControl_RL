@@ -52,8 +52,12 @@ def get_normalized_headway(headway):
         return 0.0  # error
     return normalized
 
+# Test
+## TODO: whrap this into a FAST API, which makes a get request to GTFS RT every 1 min, estimates bus bunching and sends the result to a Kafka topic
+## TODO: This should be replaced with the data from GTFS RT (api/v1/vehicle-positions) 
+## TODO: 0.3 represents 30% crowding but in GTFS realtime there are only categories -> need to convert GTFS categories to %
+## TODO: I am not sure in the GTFS realtime there is a consequitive number of the vehicle
 
-# Test 
 states = [
     [5, 100, 0.3, 0],   
     [5, 100, 0.3, 1],   
@@ -77,6 +81,7 @@ normalized_states = [
 state_dict = {f"bus_{i}": state for i, state in enumerate(normalized_states)}
 
 actions = deploy_action_per_vehicle(state_dict, actor_models)
+
 
 for bus, act in actions.items():
     print(f"{bus} → agent {int(state_dict[bus][3])} → action: {act}")
